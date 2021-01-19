@@ -32,7 +32,6 @@ const byte VarType_DATE = 14;
 const byte VarType_3BYTEVALUE = 15;
 const byte VarType_2BYTEHEXVALUE = 16;
 
-
 const byte SET_REQUEST = 0x41;               // to wp
 const byte SET_RESPONCE = 0x61;              // from wp
 const byte GET_REQUEST = 0x42;               // to wp

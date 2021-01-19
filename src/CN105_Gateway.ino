@@ -30,8 +30,8 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "nl.pool.ntp.org", 3600, 300000);
 WebServer webServer(80);
 
-const char *ssid = SSID; // put in your ssid
-const char *password = WIFI_PASSWORD; // put in your wifi password
+const char *ssid = SSID;                  // put in your ssid
+const char *password = WIFI_PASSWORD;     // put in your wifi password
 const char *mqtt_server = MQTT_SERVER_IP; // put in your ip-address 10.1.1.1
 const char *gatewayName = GATEWAYNAME;
 
@@ -40,19 +40,12 @@ const byte HEADER[HEADER_LEN] = {0xfc, 0x41, 0x01, 0x30, 0x10, 0x01, 0x00, 0x00}
 const int RCVD_PKT_FAIL = 0;
 const int RCVD_PKT_CONNECT_SUCCESS = 1;
 
-char mqttData[250];     // receiving mqtt data. Filled by ISR: mqttCallback
-char mqttTopic[250];    // receiving mqtt topic. Filled by ISR: mqttCallback
-boolean flagOTA = true; // If OTA active or not
-long lastMsg = -600000;
+char mqttData[250];                       // receiving mqtt data. Filled by ISR: mqttCallback
+char mqttTopic[250];                      // receiving mqtt topic. Filled by ISR: mqttCallback
+boolean flagOTA = true;                   // If OTA active or not
 volatile boolean mqttCmdReceived = false; //do we have a commmand to proccess?
-long telnetTimer = -1000;                 // make sure it fires the first time without waiting
-// sendbuffer is used for autorun
-byte sendBuffer[packetBufferSize] = {0xfc, 0x42, 0x02, 0x7a, 0x10, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-char sendBufferStr[packetBufferSize * 5];
-byte sendBuffer3[packetBufferSize]; // sendbuffer3 is used for send commands received by MQTT
-
-char textStr[packetBufferSize * 5];
-char jsonStr[1024];
+long lastMsg = -600000;
+long telnetTimer = -1000; // make sure it fires the first time without waiting
 long autoRunTimer = -50000;
 byte commandIndex = 0;
 long commandTimer;
@@ -81,7 +74,7 @@ void setup()
 void loop()
 {
   if (millis() - telnetTimer > 250)
-  { 
+  {
     telnetTimer = millis();
     handleTelnet();
     checkWiFiConnection();
@@ -115,12 +108,11 @@ void loop()
 } // end loop
 void processMqttData()
 {
+  byte sendBuffer3[packetBufferSize]; // sendbuffer3 is used for send commands received by MQTT
   Telnet.print("Processing MQTT data.  Topic: ");
   Telnet.print(mqttTopic);
   Telnet.print("   Data: ");
   Telnet.println(mqttData);
-  //StaticJsonBuffer<250> jsonBuffer;
-  //JsonObject &root = jsonBuffer.parseObject(mqttData);
   StaticJsonDocument<256> doc;
   auto error = deserializeJson(doc, mqttData);
   if (error)
@@ -128,9 +120,9 @@ void processMqttData()
     Telnet.println("parseObject() failed");
     return;
   }
-  for (byte item = 0; item < sizeof(commandItems)/sizeof(commandItems[0]); item++)
+  for (byte item = 0; item < sizeof(commandItems) / sizeof(commandItems[0]); item++)
   {
-    const char* command = doc[commandItems[item].VarLongName];
+    const char *command = doc[commandItems[item].VarLongName];
     if (command != nullptr)
     {
       if (encodePacket(sendBuffer3, item, command))
@@ -146,7 +138,7 @@ void processMqttData()
     }
   }
 }
-boolean encodePacket(byte *sendBuffer, byte item, const char* command)
+boolean encodePacket(byte *sendBuffer, byte item, const char *command)
 {
   memcpy(sendBuffer, commandItems[item].packetMask, packetBufferSize);
   switch (commandItems[item].SetType)
@@ -175,7 +167,7 @@ boolean encodePacket(byte *sendBuffer, byte item, const char* command)
   }
   return false;
 }
-boolean encodeACMode(byte *sendBuffer, byte item, const char* command)
+boolean encodeACMode(byte *sendBuffer, byte item, const char *command)
 {
   int mode;
   mode = command[0] - '0';
@@ -186,7 +178,7 @@ boolean encodeACMode(byte *sendBuffer, byte item, const char* command)
   sendBuffer[commandItems[item].VarIndex] = mode;
   return true;
 }
-boolean encodeTemperature(byte *sendBuffer, byte item, const char* command)
+boolean encodeTemperature(byte *sendBuffer, byte item, const char *command)
 {
   int temperature = atoi(command);
   if (temperature > 70)
@@ -198,7 +190,7 @@ boolean encodeTemperature(byte *sendBuffer, byte item, const char* command)
   sendBuffer[commandItems[item].VarIndex + 1] = temperature;
   return true;
 }
-boolean encodeOnOff(byte *sendBuffer, byte item, const char* command)
+boolean encodeOnOff(byte *sendBuffer, byte item, const char *command)
 {
   int mode;
   mode = command[0] - '0';
@@ -210,7 +202,6 @@ boolean encodeOnOff(byte *sendBuffer, byte item, const char* command)
   return true;
 }
 void handleTelnet()
-
 {
   if (TelnetServer.hasClient())
   {
@@ -229,6 +220,7 @@ void handleTelnet()
 
 void autoRunProcess()
 {
+  byte sendBuffer[packetBufferSize] = {0xfc, 0x42, 0x02, 0x7a, 0x10, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   if (millis() - commandTimer > 2000)
   {
     commandTimer = millis();
@@ -247,18 +239,19 @@ void autoRunProcess()
 void receiveSerialPacket()
 {
   byte receiveBuffer[packetBufferSize];
+  char jsonStr[1024];
   if (readPacket(receiveBuffer) == RCVD_PKT_CONNECT_SUCCESS)
   {
     Telnet.println(timeStr);
     Telnet.print("From WP: ");
     printPacketHex(receiveBuffer);
-    parsePacket(receiveBuffer, textStr, jsonStr);
+    parsePacket(receiveBuffer, jsonStr);
     char gatewayTeleTopic[100] = {'\0'};
     strcat(gatewayTeleTopic, gatewayName);
     strcat(gatewayTeleTopic, "/tele/");
     char tempStr[10];
     sprintf(tempStr, "0x%02X", receiveBuffer[5]);
-    strcat(gatewayTeleTopic,tempStr);
+    strcat(gatewayTeleTopic, tempStr);
     Telnet.print("Sending MQTT messages: ");
     Telnet.print(gatewayTeleTopic);
     Telnet.print(" ");
@@ -488,10 +481,10 @@ void Bin2Hex(char *hexStr, byte *packet)
   hexStr[packetLen * 5 + 1] = '\0';
 }
 // packet parsing routines
-void parsePacket(byte *packet, char *textStr, char *jsonStr)
+void parsePacket(byte *packet, char *jsonStr)
 {
   int i = 0;
-  Bin2Hex(textStr, packet); // we have the char hex value in the str. Now we replace the know fields
+  // Bin2Hex(textStr, packet); // we have the char hex value in the str. Now we replace the know fields
   jsonStr[0] = '{';
   jsonStr[1] = '\0';
   i = 0;
@@ -501,14 +494,14 @@ void parsePacket(byte *packet, char *textStr, char *jsonStr)
     {
       if (packet[5] == items[i].Command)
       {
-        parsePacketItem(packet, textStr, jsonStr, i);
+        parsePacketItem(packet, jsonStr, i);
       }
     }
     i++;
   }
   strcat(jsonStr, "}");
 }
-void parsePacketItem(byte *packet, char *textStr, char *jsonStr, byte item)
+void parsePacketItem(byte *packet, char *jsonStr, byte item)
 {
   char tmpStr[50];
   switch (items[item].VarType)
@@ -566,7 +559,7 @@ void parsePacketItem(byte *packet, char *textStr, char *jsonStr, byte item)
   default:
     break;
   }
-  memcpy(textStr + items[item].VarIndex * 5, items[item].VarShortName, 4);
+  //memcpy(textStr + items[item].VarIndex * 5, items[item].VarShortName, 4);
   if (strlen(jsonStr) > 2)
   {
     strcat(jsonStr, ",");
