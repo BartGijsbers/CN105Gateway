@@ -33,23 +33,17 @@ WebServer webServer(80);
 const char *ssid = SSID;                  // put in your ssid
 const char *password = WIFI_PASSWORD;     // put in your wifi password
 const char *mqtt_server = MQTT_SERVER_IP; // put in your ip-address 10.1.1.1
-const char *gatewayName = GATEWAYNAME;
-
-static const int HEADER_LEN = 8;
-const byte HEADER[HEADER_LEN] = {0xfc, 0x41, 0x01, 0x30, 0x10, 0x01, 0x00, 0x00};
-const int RCVD_PKT_FAIL = 0;
-const int RCVD_PKT_CONNECT_SUCCESS = 1;
+const char *gatewayName = GATEWAYNAME;    // give your gateway a name
 
 char mqttData[250];                       // receiving mqtt data. Filled by ISR: mqttCallback
 char mqttTopic[250];                      // receiving mqtt topic. Filled by ISR: mqttCallback
+volatile boolean mqttCmdReceived = false; // flag received mqtt request
 boolean flagOTA = true;                   // If OTA active or not
-volatile boolean mqttCmdReceived = false; //do we have a commmand to proccess?
-long lastMsg = -600000;
-long telnetTimer = -1000; // make sure it fires the first time without waiting
-long autoRunTimer = -50000;
-byte commandIndex = 0;
-long commandTimer;
-char timeStr[20];
+long lastMsg = -600000;     // used to fire the status update and sync the time
+long telnetTimer = -1000;   // make sure it fires the first time without waiting
+long autoRunTimer = -50000; // used to poll the heat pump
+byte commandIndex = 0;      // which item are we polling
+long commandTimer;          // polling speed counter
 int failedMqttConnect = 0;
 
 void setup()
@@ -82,7 +76,6 @@ void loop()
     {
       reconnect();
     }
-    timeClient.getFormattedTime().toCharArray(timeStr, 9);
   }
   receiveSerialPacket();
   if (millis() - autoRunTimer > 10000)
@@ -106,6 +99,7 @@ void loop()
   }
   delay(1);
 } // end loop
+// Packet handling routines
 void processMqttData()
 {
   byte sendBuffer3[packetBufferSize]; // sendbuffer3 is used for send commands received by MQTT
@@ -127,7 +121,7 @@ void processMqttData()
     {
       if (encodePacket(sendBuffer3, item, command))
       {
-        sendPacket(sendBuffer3);
+        sendSerialPacket(sendBuffer3);
         Telnet.print("To WP  : ");
         printPacketHex(sendBuffer3);
       }
@@ -137,6 +131,21 @@ void processMqttData()
       }
     }
   }
+}
+void sendSerialPacket(byte *sendBuffer)
+{
+  int i;
+  byte packetLength;
+  byte checkSum;
+
+  checkSum = calculateCheckSum(sendBuffer);
+  packetLength = sendBuffer[4] + 5;
+  sendBuffer[packetLength] = checkSum;
+  for (i = 0; i <= packetLength; i++)
+  {
+    Serial2.write(sendBuffer[i]);
+  }
+  Serial2.flush();
 }
 boolean encodePacket(byte *sendBuffer, byte item, const char *command)
 {
@@ -201,23 +210,6 @@ boolean encodeOnOff(byte *sendBuffer, byte item, const char *command)
   sendBuffer[commandItems[item].VarIndex] = mode;
   return true;
 }
-void handleTelnet()
-{
-  if (TelnetServer.hasClient())
-  {
-    if (!Telnet || !Telnet.connected())
-    {
-      if (Telnet)
-        Telnet.stop();
-      Telnet = TelnetServer.available();
-    }
-    else
-    {
-      TelnetServer.available().stop();
-    }
-  }
-} // end handleTelnet
-
 void autoRunProcess()
 {
   byte sendBuffer[packetBufferSize] = {0xfc, 0x42, 0x02, 0x7a, 0x10, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -225,7 +217,7 @@ void autoRunProcess()
   {
     commandTimer = millis();
     sendBuffer[5] = commandEntrys[commandIndex];
-    sendPacket(sendBuffer);
+    sendSerialPacket(sendBuffer);
     Telnet.print("To WP  : ");
     printPacketHex(sendBuffer);
     commandIndex++;
@@ -240,8 +232,11 @@ void receiveSerialPacket()
 {
   byte receiveBuffer[packetBufferSize];
   char jsonStr[1024];
+  char timeStr[20];           // holds the time in a str format
+
   if (readPacket(receiveBuffer) == RCVD_PKT_CONNECT_SUCCESS)
   {
+    timeClient.getFormattedTime().toCharArray(timeStr, 9);
     Telnet.println(timeStr);
     Telnet.print("From WP: ");
     printPacketHex(receiveBuffer);
@@ -258,151 +253,6 @@ void receiveSerialPacket()
     Telnet.println(jsonStr);
     mqttClient.publish(gatewayTeleTopic, jsonStr);
   }
-}
-void checkWiFiConnection()
-{
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    // wifi down, reconnect here
-    WiFi.begin();
-    Serial.println("WiFi disconnected, will try to reconnect");
-    int WLcount = 0;
-    int UpCount = 0;
-    while (WiFi.status() != WL_CONNECTED && WLcount < 200)
-    {
-      delay(100);
-      Serial.printf(".");
-      if (UpCount >= 60) // just keep terminal from scrolling sideways
-      {
-        UpCount = 0;
-        Serial.printf("\n");
-      }
-      ++UpCount;
-      ++WLcount;
-    }
-    reconnect();
-  }
-}
-void publishGatewayStatus()
-{
-  // publish gateway status
-  //Serial.println("Waiting for ESP-NOW messages or MQTT commands... 600 sec");
-  // publish online
-  char gatewayStatusTopic[100] = {'\0'};
-  strcat(gatewayStatusTopic, gatewayName);
-  strcat(gatewayStatusTopic, "/status");
-  //  Serial.print("MQTT publish: [");
-  //  Serial.print(gatewayStatusTopic);
-  //  Serial.println("] Online");
-  mqttClient.publish(gatewayStatusTopic, "Online");
-  // public ip address as hyperlink
-  char gatewayIPTopic[100] = {'\0'};
-  strcat(gatewayIPTopic, gatewayName);
-  strcat(gatewayIPTopic, "/ipaddress");
-  char msg[100] = {'\0'};
-  strcat(msg, "<a href=\"http://");
-  char IP[] = "xxx.xxx.xxx.xxx"; // buffer
-  IPAddress ip = WiFi.localIP();
-  ip.toString().toCharArray(IP, 16);
-  strcat(msg, IP);
-  strcat(msg, "\"target=\"_blank\">");
-  strcat(msg, IP);
-  strcat(msg, "</a>");
-  // &hs.setdevicestring(1380,"<a href=""http://192.168.5.161""target=""_blank"">Online</a>",true)
-  //  Serial.print("MQTT publish: [");
-  //  Serial.print(gatewayIPTopic);
-  //  Serial.print("] ");
-  //  Serial.println(msg);
-  mqttClient.publish(gatewayIPTopic, msg);
-} //end publishGatewayStatus
-void initWifi()
-{
-  WiFi.setHostname(gatewayName);
-  WiFi.mode(WIFI_STA);
-  Serial.print("Connecting to ");
-  Serial.print(ssid);
-  if (strcmp(WiFi.SSID().c_str(), ssid) != 0)
-  {
-    WiFi.begin(ssid, password);
-  }
-  int retries = 20; // 10 seconds
-  while ((WiFi.status() != WL_CONNECTED) && (retries-- > 0))
-  {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  if (retries < 1)
-  {
-    Serial.print("*** WiFi connection failed");
-    ESP.restart();
-  }
-  Serial.print("WiFi connected, IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("STA mac: ");
-  Serial.println(WiFi.macAddress());
-  Serial.print("WiFi channel: ");
-  Serial.println(WiFi.channel());
-  Serial.println("Hostname " + String(gatewayName));
-
-} // end initWifi
-void initOTA()
-{
-  ArduinoOTA.setHostname(gatewayName);
-  ArduinoOTA
-      .onStart([]() {
-        String type;
-        if (ArduinoOTA.getCommand() == U_FLASH)
-          type = "sketch";
-        else // U_SPIFFS
-          type = "filesystem";
-
-        // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-        Serial.println("Start updating " + type);
-      })
-      .onEnd([]() {
-        Serial.println("\nEnd");
-      })
-      .onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-      })
-      .onError([](ota_error_t error) {
-        Serial.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR)
-          Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR)
-          Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR)
-          Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR)
-          Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR)
-          Serial.println("End Failed");
-      });
-
-  ArduinoOTA.begin();
-}
-// Packet handling routines
-void sendPacket(byte *sendBuffer)
-{
-  int i;
-  byte packetLength;
-  byte checkSum;
-
-  checkSum = calculateCheckSum(sendBuffer);
-  packetLength = sendBuffer[4] + 5;
-  sendBuffer[packetLength] = checkSum;
-  for (i = 0; i <= packetLength; i++)
-  {
-    Serial2.write(sendBuffer[i]);
-  }
-  Serial2.flush();
-}
-void printPacketHex(byte *receivePacket)
-{
-  char receivePacketStr[packetBufferSize * 5];
-  Bin2Hex(receivePacketStr, receivePacket);
-  Telnet.println(receivePacketStr);
 }
 int readPacket(byte *data)
 {
@@ -453,6 +303,12 @@ int readPacket(byte *data)
     }
   }
   return RCVD_PKT_FAIL;
+}
+void printPacketHex(byte *receivePacket)
+{
+  char receivePacketStr[packetBufferSize * 5];
+  Bin2Hex(receivePacketStr, receivePacket);
+  Telnet.println(receivePacketStr);
 }
 byte calculateCheckSum(byte *data)
 {
@@ -762,7 +618,8 @@ void parse2ByteHexValue(byte *packet, byte varIndex, char *textStr)
   value = (packet[varIndex] * 256 + packet[varIndex + 1]);
   sprintf(textStr, "0x%04X", value);
 }
-// mqtt subs
+
+// system subs
 void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
   if (mqttCmdReceived)
@@ -815,6 +672,146 @@ void reconnect()
   if (failedMqttConnect > 400)
     failedMqttConnect = 0;
 }
+void checkWiFiConnection()
+{
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    // wifi down, reconnect here
+    WiFi.begin();
+    Serial.println("WiFi disconnected, will try to reconnect");
+    int WLcount = 0;
+    int UpCount = 0;
+    while (WiFi.status() != WL_CONNECTED && WLcount < 200)
+    {
+      delay(100);
+      Serial.printf(".");
+      if (UpCount >= 60) // just keep terminal from scrolling sideways
+      {
+        UpCount = 0;
+        Serial.printf("\n");
+      }
+      ++UpCount;
+      ++WLcount;
+    }
+    reconnect();
+  }
+}
+void publishGatewayStatus()
+{
+  // publish gateway status
+  //Serial.println("Waiting for ESP-NOW messages or MQTT commands... 600 sec");
+  // publish online
+  char gatewayStatusTopic[100] = {'\0'};
+  strcat(gatewayStatusTopic, gatewayName);
+  strcat(gatewayStatusTopic, "/status");
+  //  Serial.print("MQTT publish: [");
+  //  Serial.print(gatewayStatusTopic);
+  //  Serial.println("] Online");
+  mqttClient.publish(gatewayStatusTopic, "Online");
+  // public ip address as hyperlink
+  char gatewayIPTopic[100] = {'\0'};
+  strcat(gatewayIPTopic, gatewayName);
+  strcat(gatewayIPTopic, "/ipaddress");
+  char msg[100] = {'\0'};
+  strcat(msg, "<a href=\"http://");
+  char IP[] = "xxx.xxx.xxx.xxx"; // buffer
+  IPAddress ip = WiFi.localIP();
+  ip.toString().toCharArray(IP, 16);
+  strcat(msg, IP);
+  strcat(msg, "\"target=\"_blank\">");
+  strcat(msg, IP);
+  strcat(msg, "</a>");
+  // &hs.setdevicestring(1380,"<a href=""http://192.168.5.161""target=""_blank"">Online</a>",true)
+  //  Serial.print("MQTT publish: [");
+  //  Serial.print(gatewayIPTopic);
+  //  Serial.print("] ");
+  //  Serial.println(msg);
+  mqttClient.publish(gatewayIPTopic, msg);
+} //end publishGatewayStatus
+void initWifi()
+{
+  WiFi.setHostname(gatewayName);
+  WiFi.mode(WIFI_STA);
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+  if (strcmp(WiFi.SSID().c_str(), ssid) != 0)
+  {
+    WiFi.begin(ssid, password);
+  }
+  int retries = 20; // 10 seconds
+  while ((WiFi.status() != WL_CONNECTED) && (retries-- > 0))
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  if (retries < 1)
+  {
+    Serial.print("*** WiFi connection failed");
+    ESP.restart();
+  }
+  Serial.print("WiFi connected, IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("STA mac: ");
+  Serial.println(WiFi.macAddress());
+  Serial.print("WiFi channel: ");
+  Serial.println(WiFi.channel());
+  Serial.println("Hostname " + String(gatewayName));
+
+} // end initWifi
+void initOTA()
+{
+  ArduinoOTA.setHostname(gatewayName);
+  ArduinoOTA
+      .onStart([]() {
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH)
+          type = "sketch";
+        else // U_SPIFFS
+          type = "filesystem";
+
+        // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+        Serial.println("Start updating " + type);
+      })
+      .onEnd([]() {
+        Serial.println("\nEnd");
+      })
+      .onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      })
+      .onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR)
+          Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR)
+          Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR)
+          Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR)
+          Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR)
+          Serial.println("End Failed");
+      });
+
+  ArduinoOTA.begin();
+}
+void handleTelnet()
+{
+  if (TelnetServer.hasClient())
+  {
+    if (!Telnet || !Telnet.connected())
+    {
+      if (Telnet)
+        Telnet.stop();
+      Telnet = TelnetServer.available();
+    }
+    else
+    {
+      TelnetServer.available().stop();
+    }
+  }
+} // end handleTelnet
+
 // webserver
 void initWebserver()
 {

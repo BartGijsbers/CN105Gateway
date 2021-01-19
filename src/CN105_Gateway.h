@@ -1,6 +1,11 @@
 #include "Arduino.h"
 #define packetBufferSize 23
 
+static const int HEADER_LEN = 8;
+const byte HEADER[HEADER_LEN] = {0xfc, 0x41, 0x01, 0x30, 0x10, 0x01, 0x00, 0x00};
+const int RCVD_PKT_FAIL = 0;
+const int RCVD_PKT_CONNECT_SUCCESS = 1;
+
 typedef uint8_t byte;
 
 struct item

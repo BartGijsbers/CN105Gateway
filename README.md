@@ -6,13 +6,8 @@ ESP32 based MQTT gateway for the CN105 protocol based Mitsubishi Heat Pumps (FTC
   * Pull all known information for the HP (Heat Pump) in a loop (about one's a minute)
   * Publish all know information using MQTT. Topic: cn105gw/tele
   * The information is JSON encoded  payload: {"Zone 1 Flow Temp Setpoint":"32"})
-  * Provide a logging output by telnet (telnet to the gateway on port 22)
-
-* Provide a control screen to do the following: (telnet to the gateway on port 23(default port))
-  * Start/Stop colection/sending of information
-  * Create a test packet to send to the HP
-  * Send a test packet
-  
+  * Provide a logging output by telnet
+ 
 * Provide a webinterface for status of the gateway
   * You can set OTA enable/disble
   * Reboot the gateway
@@ -30,8 +25,8 @@ with 5V.
 
 ## MQTT format
 The gateway will send MQTT data in the following format:
-* Topic: cn105gw/tele (All data is send in this topic!)
-* Payload (json encoded): {"Zone 1 Flow Temp Setpoint":"32"}
+* Topic: cn105gw/tele/0x09 (0x09 indicates the command entry received from the Heat Pump)
+* Payload: {"Zone1_Room_Temp_Setpoint":"21.0","Zone2_Room_Temp_Setpoint":"23.0","Zone1_Flow_Temp_Setpoint":"32.0","Zone2_Flow_Temp_Setpoint":"31.0","Legionalla_Temp_Setpoint":"65.0","Flow_Temp_Range_Max":"35.0","Flow_Temp_Range_Min":"25.0"}
 
 Last will and testament is implemented:
 * Topic: cn105gw/status
@@ -40,11 +35,6 @@ Last will and testament is implemented:
 Setting parameters is done in this format:
 * Topic: cn105gw/cmnd
 * Payload (json encoded as strings): {"SetFlowTemperature":"33"}
-
-## MQTT options
-For better compatibility it is possible to receive the topics in an other format. When the flag "itemInTopic" is set to "true" then all the /tele topics will be expanded with command number of the packet. The items in the payload will not have spaces in their names.
-* Topic: cn105gw/tele/0x09
-* Payload: {"Zone1_Room_Temp_Setpoint":"21.0","Zone2_Room_Temp_Setpoint":"23.0","Zone1_Flow_Temp_Setpoint":"32.0","Zone2_Flow_Temp_Setpoint":"31.0","Legionalla_Temp_Setpoint":"65.0","Flow_Temp_Range_Max":"35.0","Flow_Temp_Range_Min":"25.0"}
 
 ## Implemented settings:
 All settings are done in Topic: cn105gw/cmnd
