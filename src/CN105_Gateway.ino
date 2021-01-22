@@ -167,7 +167,7 @@ boolean encodePacket(byte *sendBuffer, byte item, const char *command)
   case SetCommand_SetOnOff:
     return encodeOnOff(sendBuffer, item, command);
     break;
-  case SetCommand_ForceDHW:
+  case SetCommand_Nothing:
     return true;
     break;
   default:

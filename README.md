@@ -58,6 +58,8 @@ All settings are done in Topic: cn105gw/cmnd
 * {"SetRoomTemperature":"XX"}
   * XX=Temperature (whole decimal)
 * {"ForceDHW":"1"}
+  * 1=ForceDHW
+  * 0= Cancel/back normal
 
 With help of many on the internet.
 
