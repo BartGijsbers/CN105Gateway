@@ -412,6 +412,9 @@ void parsePacketItem(byte *packet, char *jsonStr, byte item)
   case VarType_2BYTEHEXVALUE:
     parse2ByteHexValue(packet, items[item].VarIndex, tmpStr);
     break;
+  case VarType_OnOff:
+    parseOnOff(packet, items[item].VarIndex, tmpStr);
+    break;
   default:
     break;
   }
@@ -617,6 +620,21 @@ void parse2ByteHexValue(byte *packet, byte varIndex, char *textStr)
   int value;
   value = (packet[varIndex] * 256 + packet[varIndex + 1]);
   sprintf(textStr, "0x%04X", value);
+}
+void parseOnOff(byte *packet, byte varIndex, char *textStr)
+{
+  switch (packet[varIndex])
+  {
+  case 0:
+    strcpy(textStr, "Off");
+    break;
+  case 1:
+    strcpy(textStr, "On");
+    break;
+  default:
+    sprintf(textStr, "Unknown entry: %02X", packet[varIndex]);
+    break;
+  }
 }
 
 // system subs

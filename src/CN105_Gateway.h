@@ -36,6 +36,7 @@ const byte VarType_ONE_BYTE_TEMPERATURE_20 = 13;
 const byte VarType_DATE = 14;
 const byte VarType_3BYTEVALUE = 15;
 const byte VarType_2BYTEHEXVALUE = 16;
+const byte VarType_OnOff = 17;
 
 const byte SET_REQUEST = 0x41;               // to wp
 const byte SET_RESPONCE = 0x61;              // from wp
@@ -47,7 +48,7 @@ const byte EXTENDED_CONNECT_REQUEST = 0x5B;  // to wp
 const byte EXTENDED_CONNECT_RESPONCE = 0x7B; // from wp
 
 // holds all command entry's which will be requested of the ecodan
-byte commandEntrys[] = {0x01, 0x02, 0x03, 0x04, 0x07, 0x09, 0x0b, 0x0c, 0x0d, 0x0e, 0x11, 0x13, 0x14, 0x15, 0x26, 0x29, 0xa1, 0xa2};
+byte commandEntrys[] = {0x01, 0x02, 0x03, 0x04, 0x07, 0x09, 0x0b, 0x0c, 0x0d, 0x0e, 0x11, 0x13, 0x14, 0x15, 0x26, 0x28, 0x29, 0xa1, 0xa2};
 // MelCloud requests:: 1,2,3,4,5,6,7,9,b,c,d,e,10,11,13,14,15,16,17,18,19,1a,1c,1d,1e,1f,20,26,27,28,29,a1,a2
 
 // holds all known value's and there type (used for decoding) 
@@ -64,6 +65,7 @@ item items[] = {
     {GET_RESPONCE, 0x09, 5+5, VarType_TEMPERATURE, "FlSp", "Zone 1 Flow Temp Setpoint", "Zone1_Flow_Temp_Setpoint"},
     {GET_RESPONCE, 0x09, 7+5, VarType_TEMPERATURE, "FlTp", "Zone 2 Flow Temp SetPoint", "Zone2_Flow_Temp_Setpoint"},
     {GET_RESPONCE, 0x09, 9+5, VarType_TEMPERATURE, "HWTp", "Legionella Temp Setpoint", "Legionella_Temp_Setpoint"},
+    {GET_RESPONCE, 0x09, 11+5, VarType_DECVALUE, "HWTD", "Hot Water Max Temp Drop", "Hot_Water_Max_Temp_Drop"},
     {GET_RESPONCE, 0x09, 12+5, VarType_ONE_BYTE_TEMPERATURE_20, "HWTp", "Flow temp range max", "Flow_Temp_Range_Max"},
     {GET_RESPONCE, 0x09, 13+5, VarType_ONE_BYTE_TEMPERATURE_20, "HWTp", "Flow temp range min", "Flow_Temp_Range_Min"},
     {GET_RESPONCE, 0x0b, 1+5, VarType_TEMPERATURE, "Z1Tp", "Zone 1 Room Temp", "Zone1_Room_Temp"},
@@ -93,6 +95,8 @@ item items[] = {
     {GET_RESPONCE, 0x26, 8+5, VarType_TEMPERATURE, "HWSp", "Hot Water Setpoint", "Hot_Water_Setpoint"},
     {GET_RESPONCE, 0x26, 10+5, VarType_TEMPERATURE, "EFSp", "Flow SetPoint Zone 1", "Flow_Setpoint_Zone1"},
     {GET_RESPONCE, 0x26, 12+5, VarType_TEMPERATURE, "EFTp", "Flow Setpoint Zone 2", "Flow_Setpoint_Zone2"}, 
+    {GET_RESPONCE, 0x28, 4+5, VarType_OnOff, "Holi", "Holiday Mode", "Holiday_Mode"},
+    {GET_RESPONCE, 0x28, 5+5, VarType_OnOff, "HWTi", "Hot Water Timer", "Hot_Water_Timer"},
     {GET_RESPONCE, 0x29, 4+5, VarType_TEMPERATURE, "Unkn", "Zone 1 Room Temp Setpoint2", "Zone1_Room_Temp_Setpoint2"},
     {GET_RESPONCE, 0x29, 6+5, VarType_TEMPERATURE, "Unkn", "Zone 2 Room Temp Setpoint2", "Zone2_Room_Temp_Setpoint2"},
     {GET_RESPONCE, 0xa1, 1+5, VarType_DATE, "Date", "Date Consumed Energy", "Date_Consumed_Energy"},
