@@ -43,7 +43,7 @@ All settings are done in Topic: cn105gw/cmnd
   * 1=On
 * {"SetHotWaterMode":"1"}
   * 0=Normal
-  * 1=Standy
+  * 1=Eco
 * {"SetACMode":"1"} 
   * 0=heating room mode
   * 1=heating flow temp
