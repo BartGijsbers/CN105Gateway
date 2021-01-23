@@ -16,7 +16,7 @@
 #include <WebServer.h>
 #include <ArduinoOTA.h>
 #include "CN105_Gateway.h"
-#include "..\..\passwords.h"
+#include "../../passwords.h"
 
 #define RXD2 16
 #define TXD2 17
