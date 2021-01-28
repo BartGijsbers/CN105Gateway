@@ -45,6 +45,7 @@ long autoRunTimer = -50000; // used to poll the heat pump
 byte commandIndex = 0;      // which item are we polling
 long commandTimer;          // polling speed counter
 int failedMqttConnect = 0;
+boolean connectedToHP = false;
 
 void setup()
 {
@@ -80,7 +81,13 @@ void loop()
   receiveSerialPacket();
   if (millis() - autoRunTimer > 10000)
   {
-    autoRunProcess();
+    if (!connectedToHP) {
+      sendConnectPacket();
+      autoRunTimer = millis();
+    }
+    else {
+      autoRunProcess();
+    }
   }
   if (mqttCmdReceived)
   {
@@ -146,6 +153,17 @@ void sendSerialPacket(byte *sendBuffer)
     Serial2.write(sendBuffer[i]);
   }
   Serial2.flush();
+}
+void sendConnectPacket()
+{
+  int i;
+  for (i = 0; i < CONNECT_LEN; i++)
+  {
+    Serial2.write(CONNECT[i]);
+  }
+  Serial2.flush();
+  //connectedToHP = true;
+  Telnet.println("Connect packet send");
 }
 boolean encodePacket(byte *sendBuffer, byte item, const char *command)
 {
@@ -294,6 +312,10 @@ int readPacket(byte *data)
       checksum = (0xfc - dataSum) & 0xff; // calculate checksum
       if (data[dataLength] == checksum)
       { // we have a correct packet
+        if (data[1] == 0x7a){
+          connectedToHP = true;
+          Telnet.println("Connected successfully");
+        }
         return RCVD_PKT_CONNECT_SUCCESS;
       }
       else
