@@ -1,7 +1,7 @@
 # cn105gw
 ESP32 based MQTT gateway for the CN105 protocol based Mitsubishi Heat Pumps (FTC5)
 
-## The code is developed to do the folling things:
+## The code is developed to do the following things:
 * General
   * Pull all known information for the HP (Heat Pump) in a loop (about one's a minute)
   * Publish all know information using MQTT. Topic: cn105gw/tele
