@@ -454,12 +454,11 @@ void parsePacketItem(byte *packet, char *jsonStr, byte item)
 void parseTemperature(byte *packet, byte varIndex, char *textStr)
 {
   float temperature;
-  float msb = 0;
-  float lsb = 0;
-  msb = packet[varIndex];
-  lsb = packet[varIndex + 1];
-  temperature = (msb * 256 + lsb) / 100;
-  sprintf(textStr, "%2.1f", temperature);
+  int16_t temp = 0;
+  temp = packet[varIndex + 1];
+  temp |= packet[varIndex] << 8;
+  temperature = (float)temp / 100;
+  snprintf(textStr, 7, "%2.1f", temperature);
 }
 void parseTimeDate(byte *packet, byte varIndex, char *textStr)
 {
