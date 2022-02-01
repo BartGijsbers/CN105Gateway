@@ -21,7 +21,7 @@ with 5V.
 
 ![image](https://raw.githubusercontent.com/BartGijsbers/CN105Gateway/main/images/finishedbox.png)
 
-![image](https://github.com/BartGijsbers/cn105gw/blob/main/images/physicalschema.png)
+![image](https://github.com/BartGijsbers/CN105Gateway/blob/main/images/physicalschema.png?raw=true)
 
 ## MQTT format
 The gateway will send MQTT data in the following format:
