@@ -19,7 +19,7 @@ I use a level shifting board (5v from HP to 3.3V Lolin32) and a DC-DC convertor.
 is use to power the Lolon32 board from the 12V provided by the CN105 interface. I power the Lolin32 
 with 5V.
 
-![image](https://github.com/BartGijsbers/cn105gw/blob/main/images/finishedbox.png)
+![image](https://raw.githubusercontent.com/BartGijsbers/CN105Gateway/main/images/finishedbox.png)
 
 ![image](https://github.com/BartGijsbers/cn105gw/blob/main/images/physicalschema.png)
 
